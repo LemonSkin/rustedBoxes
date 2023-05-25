@@ -1,3 +1,6 @@
+use std::cmp::Ordering;
+use std::collections::HashMap;
+use std::fs::OpenOptions;
 use std::io::{stdin, stdout, Write};
 
 use crate::configuration;
@@ -10,7 +13,7 @@ struct Game {
     max_input_x: usize,
     last_valid_move: (usize, usize, char),
 }
-pub fn run(config: configuration::Config) -> Result<bool, u8> {
+pub fn run(config: configuration::Config) -> Result<String, u8> {
     let mut game = Game::build(config);
     game.print();
 
@@ -44,9 +47,7 @@ pub fn run(config: configuration::Config) -> Result<bool, u8> {
     }
 
     //TODO: Determine winners
-    println!("{}", game.determine_winners());
-
-    Ok(true)
+    Ok(game.determine_winners())
 }
 
 impl Game {
@@ -165,6 +166,7 @@ impl Game {
         let split_player_move: Vec<&str> = player_move.split(' ').collect();
 
         //TODO: Handle save game
+        if split_player_move.len() == 2 && split_player_move[0] == "w" {}
 
         // Ensure only 3 arguments are given
         if split_player_move.len() != 3 {
@@ -297,9 +299,39 @@ impl Game {
     }
 
     fn determine_winners(self) -> String {
-        let mut winner_string = String::from("Winner(s): ");
-        //TODO: Create hash map of winner symbols to generate the string
+        // Generate hash map of player scores
+        let mut winners_map: HashMap<char, u16> = HashMap::new();
+        for (row_index, row) in self.game_board.iter().enumerate() {
+            if row_index % 2 != 0 {
+                for (column_index, c) in row.iter().enumerate() {
+                    if column_index % 2 != 0 {
+                        // Insert the key for found player or increment if it exists.
+                        *winners_map.entry(*c).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
 
-        winner_string
+        // Generate string of winners
+        let mut winners = String::new();
+        let mut highest_score = 0;
+        for (key, value) in winners_map.iter() {
+            match value.cmp(&highest_score) {
+                Ordering::Greater => {
+                    highest_score = *value;
+                    winners.clear();
+                    winners.push(*key);
+                }
+                Ordering::Equal => {
+                    winners.push_str(", ");
+                    winners.push(*key);
+                }
+                Ordering::Less => (),
+            };
+        }
+
+        winners
     }
+
+    fn save_game(self) {}
 }

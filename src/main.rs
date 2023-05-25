@@ -9,8 +9,10 @@ fn main() {
         Err(e) => return handle_error(e),
     };
 
-    match run(config) {
-        Ok(_) => (),
-        Err(e) => handle_error(e),
-    }
+    let winners: String = match run(config) {
+        Ok(winners) => winners,
+        Err(e) => return handle_error(e),
+    };
+
+    println!("Winner(s): {winners}");
 }
