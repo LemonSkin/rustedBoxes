@@ -47,7 +47,7 @@ pub fn run(config: configuration::Config) -> Result<String, u8> {
         }
     }
 
-    //TODO: Determine winners
+    //Determine winners
     Ok(game.determine_winners())
 }
 
