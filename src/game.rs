@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::{stdin, stdout, Write};
 
@@ -156,35 +157,35 @@ impl Game {
             Err(_) => return Err(6),
         };
 
-        // Trim CR and LF from input
+        // Trim CR and LF from input and format into vector of strings
         player_move = player_move.replace(['\n', '\r'], "");
+        let player_move: Vec<&str> = player_move.split(' ').collect();
 
-        Ok(self.validate_player_move(player_move))
+        if player_move.len() == 2 && player_move[0] == "w" {
+            Ok(self.save_game(player_move[1])?)
+        } else {
+            Ok(self.validate_player_move(player_move))
+        }
     }
 
-    fn validate_player_move(&mut self, player_move: String) -> bool {
-        let split_player_move: Vec<&str> = player_move.split(' ').collect();
-
-        //TODO: Handle save game
-        if split_player_move.len() == 2 && split_player_move[0] == "w" {}
-
+    fn validate_player_move(&mut self, player_move: Vec<&str>) -> bool {
         // Ensure only 3 arguments are given
-        if split_player_move.len() != 3 {
+        if player_move.len() != 3 {
             return false;
         }
         // Parse input coordinantes as usize. Automatically rejects negative input
-        let Ok(move_y) = split_player_move[0].parse::<usize>() else {
+        let Ok(move_y) = player_move[0].parse::<usize>() else {
             return false;
         };
-        let Ok(move_x) = split_player_move[1].parse::<usize>() else {
+        let Ok(move_x) = player_move[1].parse::<usize>() else {
             return false;
         };
 
         // Check the player edge option
-        if split_player_move[2].len() != 1 {
+        if player_move[2].len() != 1 {
             return false;
         }
-        let Some(player_edge_option) = split_player_move[2].chars().next() else {
+        let Some(player_edge_option) = player_move[2].chars().next() else {
             return false;
         };
 
@@ -333,5 +334,63 @@ impl Game {
         winners
     }
 
-    fn save_game(self) {}
+    fn save_game(&self, path: &str) -> Result<bool, u8> {
+        let mut edges = String::new();
+        let mut cells: String = String::new();
+        let mut add_comma: bool = false;
+
+        for (iy, row) in self.game_board.iter().enumerate() {
+            for (ix, c) in row.iter().enumerate() {
+                // Process edge data
+                if ((iy % 2 == 0 && ix % 2 != 0) || (iy % 2 != 0 && ix % 2 == 0)) && *c != ' ' {
+                    edges.push('1');
+                } else if ((iy % 2 == 0 && ix % 2 != 0) || (iy % 2 != 0 && ix % 2 == 0))
+                    && *c == ' '
+                {
+                    edges.push('0');
+                }
+
+                // Process cell data
+                if iy % 2 != 0 && ix % 2 != 0 && *c == ' ' {
+                    if add_comma {
+                        cells.push(',');
+                    }
+                    add_comma = true;
+                    cells.push('0');
+                } else if iy % 2 != 0 && ix % 2 != 0 && *c != ' ' {
+                    if add_comma {
+                        cells.push(',');
+                    }
+                    add_comma = true;
+                    let Some(char_save_value) = char::from_digit((*c as u32) - 64, 10) else {
+                        return Err(9);
+                    };
+                    cells.push(char_save_value);
+                }
+            }
+            add_comma = false;
+
+            edges.push('\n');
+            if iy % 2 != 0 {
+                cells.push('\n');
+            }
+        }
+
+        // Construct single string with newlines to avoid multiple IO
+        let mut save_contents = self.player_turn.to_string();
+        save_contents.push('\n');
+        save_contents.push_str(&edges);
+        save_contents.push_str(&cells);
+
+        let Ok(_file) = OpenOptions::new().write(true).create_new(true).open(path) else {
+            eprintln!("Error opening file for saving grid");
+            return Ok(false);
+        };
+        let Ok(_result) = fs::write(path, save_contents) else {
+            return Err(9);
+        };
+        eprintln!("Save of grid successful");
+
+        Ok(false)
+    }
 }
